@@ -46,21 +46,21 @@ class CacheHeadersGrailsPlugin {
 
 		def svc = application.mainContext.cacheHeadersService
 
-		application.controllerClasses*.clazz.each { cls ->
+		for (controllerClass in application.controllerClasses) {
 
-			log.debug "Adding cache methods to ${cls}"
+			log.debug "Adding cache methods to ${controllerClass.clazz}"
 
-			cls.metaClass.cache = { Boolean allow -> svc.cache(delegate.response, allow) }
+			def mc = controllerClass.metaClass
 
-			cls.metaClass.cache << { String preset -> svc.cache(delegate.response, preset) }
+			mc.cache = { boolean allow -> svc.cache(delegate.response, allow) }
 
-			cls.metaClass.cache << { Map args -> svc.cache(delegate.response, args) }
+			mc.cache << { String preset -> svc.cache(delegate.response, preset) }
 
-			cls.metaClass.withCacheHeaders = { Closure c ->
-				svc.withCacheHeaders(delegate, c)
-			}
+			mc.cache << { Map args -> svc.cache(delegate.response, args) }
 
-			cls.metaClass.lastModified = { dateOrLong -> svc.lastModified(delegate.response, dateOrLong) }
+			mc.withCacheHeaders = { Closure c -> svc.withCacheHeaders(delegate, c) }
+
+			mc.lastModified = { dateOrLong -> svc.lastModified(delegate.response, dateOrLong) }
 		}
 	}
 }
