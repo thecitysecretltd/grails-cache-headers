@@ -2,8 +2,7 @@ import groovy.util.ConfigObject
 
 class CacheHeadersGrailsPlugin {
     def version = "1.1.6"
-    def grailsVersion = "1.2.0 > *"
-    def dependsOn = ['controllers':'1.1 > *']
+    def grailsVersion = "2.0 > *"
     def pluginExcludes = [
             "grails-app/views/error.gsp",
             "grails-app/controllers/**"
