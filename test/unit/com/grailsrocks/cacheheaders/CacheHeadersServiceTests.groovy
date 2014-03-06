@@ -1,306 +1,221 @@
 package com.grailsrocks.cacheheaders
 
+import grails.test.GrailsUnitTestCase
+
 import java.text.SimpleDateFormat
 
-import grails.test.*
-
-import org.springframework.mock.web.MockHttpServletResponse
 import org.springframework.mock.web.MockHttpServletRequest
-
-import com.grailsrocks.cacheheaders.*
+import org.springframework.mock.web.MockHttpServletResponse
 
 class CacheHeadersServiceTests extends GrailsUnitTestCase {
-    protected void setUp() {
-        super.setUp()
-        mockLogging(CacheHeadersService)
-    }
 
-    protected void tearDown() {
-        super.tearDown()
-    }
+	private MockHttpServletRequest req = new MockHttpServletRequest()
+	private MockHttpServletResponse resp = new MockHttpServletResponse()
+	private CacheHeadersService svc = new CacheHeadersService()
+	private Expando context = new Expando(
+		request: req,
+		response: resp,
+		render: { String s -> resp.outputStream << s.bytes })
 
-    static RFC1123_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz" // Always GMT
+	protected void setUp() {
+		super.setUp()
+		mockLogging(CacheHeadersService)
+	}
 
-    String dateToHTTPDate(date) {
+	private static final String RFC1123_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz" // Always GMT
 
-        def v = new SimpleDateFormat(RFC1123_DATE_FORMAT, Locale.ENGLISH)
-        v.timeZone = TimeZone.getTimeZone('GMT')
-        return v.format(date)
-    }
-    
-    void testWithCacheHeadersCachingDisabled() {
-        def svc = new CacheHeadersService()
-        svc.enabled = false
-        
-        def req = new MockHttpServletRequest()
-        req.addHeader('If-None-Match', "1234567Z")
-        
-        def resp = new MockHttpServletResponse()
-        
-        def context = new Expando(
-            request: req,
-            response: resp
-        )
-        context.render = { String s -> resp.outputStream << s.bytes }
-            
-        def res = svc.withCacheHeaders(context) {
-            etag {
-                "1234567Z"
-            }
-            generate {
-                render "Hello!"
-            }
-        }
-        
-        assertEquals 200, resp.status
-        assertEquals "Hello!", resp.contentAsString
-        assertNull resp.getHeader('Last-Modified')
-        assertNull resp.getHeader('ETag')
-    }
+	void testWithCacheHeadersCachingDisabled() {
+		svc.enabled = false
 
-    void testWithCacheHeadersETagMatch() {
-        def svc = new CacheHeadersService()
+		req.addHeader('If-None-Match', "1234567Z")
 
-        def req = new MockHttpServletRequest()
-        req.addHeader('If-None-Match', "1234567Z")
-        
-        def resp = new MockHttpServletResponse()
-        
-        def context = new Expando(
-            request: req,
-            response: resp
-        )
-        context.render = { String s -> resp.outputStream << s.bytes }
-            
-        def res = svc.withCacheHeaders(context) {
-            etag {
-                "1234567Z"
-            }
-        }
-        
-        assertEquals 304, resp.status
-        assertNull resp.getHeader('Last-Modified')
-        assertNull resp.getHeader('ETag')
-    }
+		def res = svc.withCacheHeaders(context) {
+			etag {
+				"1234567Z"
+			}
+			generate {
+				render "Hello!"
+			}
+		}
 
-    void testWithCacheHeadersETagNoMatchLastModUnchanged() {
-        def svc = new CacheHeadersService()
-        
-        def lastMod = new Date()-100
-        
-        def req = new MockHttpServletRequest()
-        req.addHeader('If-None-Match', "dsfdsfdsfdsfsd")
-        // This is an AWFUL hack because spring mock http request/response does not do string <-> date coercion
-        req.addHeader('If-Modified-Since', lastMod)
-        
-        def resp = new MockHttpServletResponse()
-        
-        def context = new Expando(
-            request: req,
-            response: resp
-        )
-        context.render = { String s -> resp.outputStream << s.bytes }
-            
-        def res = svc.withCacheHeaders(context) {
-            etag {
-                "1234567Z"
-            }
-            
-            lastModified {
-                lastMod
-            }
-            
-            generate {
-                render "Derelict Herds"
-            }
-        }
-        
-        assertEquals 200, resp.status
-        assertEquals "Derelict Herds", resp.contentAsString
-        assertEquals lastMod.time, resp.getHeader('Last-Modified')
-        assertEquals "1234567Z", resp.getHeader('ETag')
-    }
+		assertEquals 200, resp.status
+		assertEquals "Hello!", resp.contentAsString
+		assertNull resp.getHeader('Last-Modified')
+		assertNull resp.getHeader('ETag')
+	}
 
-    void testWithCacheHeadersETagMatchLastModChanged() {
-        def svc = new CacheHeadersService()
-        
-        def lastMod = new Date()-100
-        
-        def req = new MockHttpServletRequest()
-        req.addHeader('If-None-Match', "bingo")
-        // This is an AWFUL hack because spring mock http request/response does not do string <-> date coercion
-        req.addHeader('If-Modified-Since', lastMod-1)
-        
-        def resp = new MockHttpServletResponse()
-        
-        def context = new Expando(
-            request: req,
-            response: resp
-        )
-        context.render = { String s -> resp.outputStream << s.bytes }
-            
-        def res = svc.withCacheHeaders(context) {
-            etag {
-                "bingo"
-            }
-            
-            lastModified {
-                lastMod
-            }
-            
-            generate {
-                render "Derelict Herds"
-            }
-        }
-        
-        assertEquals 200, resp.status
-        assertEquals "Derelict Herds", resp.contentAsString
-        assertEquals lastMod.time, resp.getHeader('Last-Modified')
-        assertEquals "bingo", resp.getHeader('ETag')
-    }
+	void testWithCacheHeadersETagMatch() {
+		req.addHeader('If-None-Match', "1234567Z")
 
-    void testWithCacheHeadersETagMatchLastModUnchanged() {
-        def svc = new CacheHeadersService()
-        
-        def lastMod = new Date()-100
-        
-        def req = new MockHttpServletRequest()
-        req.addHeader('If-None-Match', "bingo")
-        // This is an AWFUL hack because spring mock http request/response does not do string <-> date coercion
-        req.addHeader('If-Modified-Since', lastMod)
-        
-        def resp = new MockHttpServletResponse()
-        
-        def context = new Expando(
-            request: req,
-            response: resp
-        )
-        context.render = { String s -> resp.outputStream << s.bytes }
-            
-        def res = svc.withCacheHeaders(context) {
-            etag {
-                "bingo"
-            }
-            
-            lastModified {
-                lastMod
-            }
-            
-            generate {
-                render "Derelict Herds"
-            }
-        }
-        
-        assertEquals 304, resp.status
-    }
+		def res = svc.withCacheHeaders(context) {
+			etag {
+				"1234567Z"
+			}
+		}
 
-    void testWithCacheHeadersETagNoMatchLastModChanged() {
-        def svc = new CacheHeadersService()
-        
-        def lastMod = new Date()-100
-        
-        def req = new MockHttpServletRequest()
-        req.addHeader('If-None-Match', "dsfdsfdsfdsfsd")
-        // This is an AWFUL hack because spring mock http request/response does not do string <-> date coercion
-        req.addHeader('If-Modified-Since', lastMod-1)
-        
-        def resp = new MockHttpServletResponse()
-        
-        def context = new Expando(
-            request: req,
-            response: resp
-        )
-        context.render = { String s -> resp.outputStream << s.bytes }
-            
-        def res = svc.withCacheHeaders(context) {
-            etag {
-                "1234567Z"
-            }
-            
-            lastModified {
-                lastMod
-            }
-            
-            generate {
-                render "Derelict Herds"
-            }
-        }
-        
-        assertEquals 200, resp.status
-        assertEquals "Derelict Herds", resp.contentAsString
-        assertEquals lastMod.time, resp.getHeader('Last-Modified')
-        assertEquals "1234567Z", resp.getHeader('ETag')
-    }
+		assertEquals 304, resp.status
+		assertNull resp.getHeader('Last-Modified')
+		assertNull resp.getHeader('ETag')
+	}
 
-    void testWithCacheHeadersLastModChanged() {
-        def svc = new CacheHeadersService()
+	void testWithCacheHeadersETagNoMatchLastModUnchanged() {
+		def lastMod = new Date() - 100
 
-        def req = new MockHttpServletRequest()
-        // This is an AWFUL hack because spring mock http request/response does not do string <-> date coercion
-        req.addHeader('If-Modified-Since', new Date()-102)
-        
-        def resp = new MockHttpServletResponse()
-        
-        def lastMod = new Date()-100
-        
-        def context = new Expando(
-            request: req,
-            response: resp,
-            render: { String s -> resp.outputStream << s.bytes }
-        )
-            
-        def res = svc.withCacheHeaders(context) {
-            etag {
-                "OU812"
-            }
-            lastModified {
-                lastMod
-            }
-            
-            generate {
-                render "Porcelain Heart"
-            }
-        }
-        
-        assertEquals 200, resp.status
-        assertEquals "Porcelain Heart", resp.contentAsString
-        assertEquals lastMod.time, resp.getHeader('Last-Modified')
-        assertEquals "OU812", resp.getHeader('ETag')
-    }
+		req.addHeader('If-None-Match', "dsfdsfdsfdsfsd")
+		// This is an AWFUL hack because spring mock http request/response does not do string <-> date coercion
+		req.addHeader('If-Modified-Since', lastMod)
 
-    void testWithCacheHeadersLastModNotNewer() {
-        def svc = new CacheHeadersService()
+		def res = svc.withCacheHeaders(context) {
+			etag {
+				"1234567Z"
+			}
 
-        def d = new Date()-100
-        def req = new MockHttpServletRequest()
-        // This is an AWFUL hack because spring mock http request/response does not do string <-> date coercion
-        req.addHeader('If-Modified-Since', d)
-        
-        def resp = new MockHttpServletResponse()
-        
-        def lastMod = d
-        
-        def context = new Expando(
-            request: req,
-            response: resp,
-            render: { String s -> resp.outputStream << s.bytes }
-        )
-            
-        def res = svc.withCacheHeaders(context) {
-            etag {
-                "5150"
-            }
-            lastModified {
-                lastMod
-            }
-            
-            generate {
-                render "Hessian Peel"
-            }
-        }
-        
-        assertEquals 304, resp.status
-        assertNull resp.getHeader('Last-Modified')
-        assertNull resp.getHeader('ETag')
-    }
+			lastModified {
+				lastMod
+			}
+
+			generate {
+				render "Derelict Herds"
+			}
+		}
+
+		assertEquals 200, resp.status
+		assertEquals "Derelict Herds", resp.contentAsString
+		assertEquals lastMod.time, resp.getHeader('Last-Modified')
+		assertEquals "1234567Z", resp.getHeader('ETag')
+	}
+
+	void testWithCacheHeadersETagMatchLastModChanged() {
+		def lastMod = new Date() - 100
+
+		req.addHeader('If-None-Match', "bingo")
+		// This is an AWFUL hack because spring mock http request/response does not do string <-> date coercion
+		req.addHeader('If-Modified-Since', lastMod-1)
+
+		def res = svc.withCacheHeaders(context) {
+			etag {
+				"bingo"
+			}
+
+			lastModified {
+				lastMod
+			}
+
+			generate {
+				render "Derelict Herds"
+			}
+		}
+
+		assertEquals 200, resp.status
+		assertEquals "Derelict Herds", resp.contentAsString
+		assertEquals lastMod.time, resp.getHeader('Last-Modified')
+		assertEquals "bingo", resp.getHeader('ETag')
+	}
+
+	void testWithCacheHeadersETagMatchLastModUnchanged() {
+		def lastMod = new Date() - 100
+
+		req.addHeader('If-None-Match', "bingo")
+		// This is an AWFUL hack because spring mock http request/response does not do string <-> date coercion
+		req.addHeader('If-Modified-Since', lastMod)
+
+		def res = svc.withCacheHeaders(context) {
+			etag {
+				"bingo"
+			}
+
+			lastModified {
+				lastMod
+			}
+
+			generate {
+				render "Derelict Herds"
+			}
+		}
+
+		assertEquals 304, resp.status
+	}
+
+	void testWithCacheHeadersETagNoMatchLastModChanged() {
+		def lastMod = new Date() - 100
+
+		req.addHeader('If-None-Match', "dsfdsfdsfdsfsd")
+		// This is an AWFUL hack because spring mock http request/response does not do string <-> date coercion
+		req.addHeader('If-Modified-Since', lastMod-1)
+
+		def res = svc.withCacheHeaders(context) {
+			etag {
+				"1234567Z"
+			}
+
+			lastModified {
+				lastMod
+			}
+
+			generate {
+				render "Derelict Herds"
+			}
+		}
+
+		assertEquals 200, resp.status
+		assertEquals "Derelict Herds", resp.contentAsString
+		assertEquals lastMod.time, resp.getHeader('Last-Modified')
+		assertEquals "1234567Z", resp.getHeader('ETag')
+	}
+
+	void testWithCacheHeadersLastModChanged() {
+		// This is an AWFUL hack because spring mock http request/response does not do string <-> date coercion
+		req.addHeader('If-Modified-Since', new Date() - 102)
+
+		def lastMod = new Date() - 100
+
+		def res = svc.withCacheHeaders(context) {
+			etag {
+				"OU812"
+			}
+			lastModified {
+				lastMod
+			}
+
+			generate {
+				render "Porcelain Heart"
+			}
+		}
+
+		assertEquals 200, resp.status
+		assertEquals "Porcelain Heart", resp.contentAsString
+		assertEquals lastMod.time, resp.getHeader('Last-Modified')
+		assertEquals "OU812", resp.getHeader('ETag')
+	}
+
+	void testWithCacheHeadersLastModNotNewer() {
+		def d = new Date() - 100
+		// This is an AWFUL hack because spring mock http request/response does not do string <-> date coercion
+		req.addHeader('If-Modified-Since', d)
+
+		def lastMod = d
+
+		def res = svc.withCacheHeaders(context) {
+			etag {
+				"5150"
+			}
+			lastModified {
+				lastMod
+			}
+
+			generate {
+				render "Hessian Peel"
+			}
+		}
+
+		assertEquals 304, resp.status
+		assertNull resp.getHeader('Last-Modified')
+		assertNull resp.getHeader('ETag')
+	}
+
+	private String dateToHTTPDate(date) {
+		def v = new SimpleDateFormat(RFC1123_DATE_FORMAT, Locale.ENGLISH)
+		v.timeZone = TimeZone.getTimeZone('GMT')
+		return v.format(date)
+	}
 }

@@ -1,85 +1,66 @@
-import groovy.util.ConfigObject
-
 class CacheHeadersGrailsPlugin {
-    def version = "1.1.6"
-    def grailsVersion = "2.0 > *"
-    def pluginExcludes = [
-            "grails-app/views/error.gsp",
-            "grails-app/controllers/**"
-    ]
-    
-    def author = "Graeme Rocher"
-    def authorEmail = "grocher@gopivotal.com"
-    def title = "Caching Headers Plugin"
-    def description = '''\\
-Improve your application performance with browser caching, with easy ways to set caching headers in controller responses 
-'''
+	def version = "1.1.6"
+	def grailsVersion = "2.0 > *"
+	def observe = ['controllers']
+	def pluginExcludes = [
+		"grails-app/controllers/**",
+		"src/docs/**"
+	]
+	def author = "Graeme Rocher"
+	def authorEmail = "grocher@gopivotal.com"
+	def title = "Caching Headers Plugin"
+	def description = 'Improve your application performance with browser caching, with easy ways to set caching headers in controller responses'
+	def developers = [ [ name: "Marc Palmer", email: "marc@grailsrocks.com" ], [ name: "Graeme Rocher", email: "grocher@gopivotal.com" ]]
+	def issueManagement = [ system: "JIRA", url: "http://jira.grails.org/browse/GPCACHEHEADERS" ]
+	def scm = [ url: "http://github.com/grails-plugins/grails-cache-headers" ]
+	def license = "APACHE"
+	def documentation = "http://grails.org/plugin/cache-headers"
 
-    def developers = [ [ name: "Marc Palmer", email: "marc@grailsrocks.com" ], [ name: "Graeme Rocher", email: "grocher@gopivotal.com" ]]
-    def issueManagement = [ system: "JIRA", url: "http://jira.grails.org/browse/GPCACHEHEADERS" ]
-    def scm = [ url: "http://github.com/grails-plugins/grails-cache-headers" ]
-    def license = "APACHE"
+	def doWithDynamicMethods = { ctx ->
+		addCacheMethods(application, log)
+	}
 
-    def observe = ['controllers']
-    
-    // URL to the plugin's documentation
-    def documentation = "http://grails.org/plugin/cache-headers"
+	def doWithApplicationContext = { ctx ->
+		reloadConfig(application, ctx.cacheHeadersService, log)
+	}
 
-    def doWithWebDescriptor = { xml ->
-    }
+	def onChange = { event ->
+		addCacheMethods(event.application, log)
+	}
 
-    def doWithSpring = {
-    }
+	def onConfigChange = { event ->
+		// Config change might mean that the caching has been turned on/off
+		reloadConfig(event.application, event.application.mainContext.cacheHeadersService, log)
+	}
 
-    def doWithDynamicMethods = { ctx ->
-        addCacheMethods(application, log)    
-    }
+	private void reloadConfig(application, svc, log) {
+		def conf = application.config.cache.headers
+		def cacheSetting = conf.enabled
+		svc.enabled = ((cacheSetting instanceof String) || (cacheSetting instanceof Boolean)) ? Boolean.valueOf(cacheSetting.toString()) : true
+		svc.presets = conf.presets
+		log.info "Caching enabled in Config: ${svc.enabled}"
+		log.debug "Caching presets declared: ${svc.presets}"
+	}
 
-    void reloadConfig(application, svc, log) {
-        def conf = application.config.cache.headers
-        def cacheSetting = conf.enabled
-        svc.enabled = ((cacheSetting instanceof String) || (cacheSetting instanceof Boolean)) ? Boolean.valueOf(cacheSetting.toString()) : true
-        svc.presets = conf.presets
-        log.info "Caching enabled in Config: ${svc.enabled}"
-        log.debug "Caching presets declared: ${svc.presets}"
-    }
+	private void addCacheMethods(application, log) {
 
-    void addCacheMethods(application, log) {
-        
-        def svc = application.mainContext.cacheHeadersService
+		def svc = application.mainContext.cacheHeadersService
 
-        application.controllerClasses*.clazz.each { cls ->
- 
-            if (log.debugEnabled) {
-                log.debug "Adding cache methods to ${cls}"
-            }
-            
-            cls.metaClass.cache = { Boolean allow -> svc.cache(delegate.response, allow) }
-            
-            cls.metaClass.cache << { String preset -> svc.cache(delegate.response, preset) }
-            
-            cls.metaClass.cache << { Map args -> svc.cache(delegate.response, args) }
-            
-            cls.metaClass.withCacheHeaders = { Closure c ->
-                svc.withCacheHeaders(delegate, c)
-            }
+		application.controllerClasses*.clazz.each { cls ->
 
-            cls.metaClass.lastModified = { dateOrLong -> svc.lastModified(delegate.response, dateOrLong) }
-        }        
-    }
-    
-    def doWithApplicationContext = { applicationContext ->
-        def svc = applicationContext.cacheHeadersService
-        reloadConfig(application, svc, log)
-    }
+			log.debug "Adding cache methods to ${cls}"
 
-    def onChange = { event ->
-        addCacheMethods(event.application, log)    
-    }
+			cls.metaClass.cache = { Boolean allow -> svc.cache(delegate.response, allow) }
 
-    def onConfigChange = { event ->
-        // Config change might mean that the caching has been turned on/off
-        def svc = event.application.mainContext.cacheHeadersService
-        reloadConfig(event.application, svc, log)
-    }
+			cls.metaClass.cache << { String preset -> svc.cache(delegate.response, preset) }
+
+			cls.metaClass.cache << { Map args -> svc.cache(delegate.response, args) }
+
+			cls.metaClass.withCacheHeaders = { Closure c ->
+				svc.withCacheHeaders(delegate, c)
+			}
+
+			cls.metaClass.lastModified = { dateOrLong -> svc.lastModified(delegate.response, dateOrLong) }
+		}
+	}
 }
