@@ -1,12 +1,10 @@
 package cacheheaders
 
-import grails.test.GrailsUnitTestCase
-
 import java.text.SimpleDateFormat
 
 import com.grailsrocks.cacheheaders.TestController
 
-class CacheMethodsTests extends GrailsUnitTestCase {
+class CacheMethodsTests extends GroovyTestCase {
 
 	private static final String RFC1123_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz" // Always GMT
 
@@ -26,7 +24,7 @@ class CacheMethodsTests extends GrailsUnitTestCase {
 		con.validUntilTest1()
 
 		def d = con.request.getAttribute('test_validUntil')
-		assertEquals d.time, con.response.getHeader('Expires')
+		assertEquals d.time.toString(), con.response.getHeader('Expires')
 	}
 
 	void testValidFor() {
