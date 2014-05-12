@@ -7,7 +7,14 @@ import java.text.SimpleDateFormat
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.mock.web.MockHttpServletResponse
 
-class CacheHeadersServiceTests extends GrailsUnitTestCase {
+
+import grails.test.mixin.*
+import org.junit.*
+import test.*
+import static org.junit.Assert.*
+
+@TestFor(CacheHeadersService)
+class CacheHeadersServiceTests  {
 
 	private MockHttpServletRequest req = new MockHttpServletRequest()
 	private MockHttpServletResponse resp = new MockHttpServletResponse()
@@ -17,10 +24,6 @@ class CacheHeadersServiceTests extends GrailsUnitTestCase {
 		response: resp,
 		render: { String s -> resp.outputStream << s.bytes })
 
-	protected void setUp() {
-		super.setUp()
-		mockLogging(CacheHeadersService)
-	}
 
 	private static final String RFC1123_DATE_FORMAT = "EEE, dd MMM yyyy HH:mm:ss zzz" // Always GMT
 

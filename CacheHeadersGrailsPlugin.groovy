@@ -1,5 +1,5 @@
 class CacheHeadersGrailsPlugin {
-	def version = "1.1.6"
+	def version = "1.1.7-SNAPSHOT"
 	def grailsVersion = "2.0 > *"
 	def observe = ['controllers']
 	def pluginExcludes = [
