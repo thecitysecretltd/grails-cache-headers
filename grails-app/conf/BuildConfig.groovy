@@ -1,5 +1,11 @@
+if(System.getenv('TRAVIS_BRANCH')) {
+    grails.project.repos.grailsCentral.username = System.getenv("GRAILS_CENTRAL_USERNAME")
+    grails.project.repos.grailsCentral.password = System.getenv("GRAILS_CENTRAL_PASSWORD")    
+}
+
 grails.project.work.dir = 'target'
 
+grails.project.dependency.resolver = "maven"
 grails.project.dependency.resolution = {
 
 	inherits 'global'
@@ -12,7 +18,7 @@ grails.project.dependency.resolution = {
 	}
 
 	plugins {
-		build ':release:2.2.1', ':rest-client-builder:1.0.3', {
+		build ':release:3.0.1', ':rest-client-builder:2.0.1', {
 			export = false
 		}
 	}
