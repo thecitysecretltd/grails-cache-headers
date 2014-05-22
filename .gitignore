@@ -1,9 +1,0 @@
-*.log
-/target
-grails-cache-headers-*.zip
-grails-cache-headers-*.zip.sha1
-plugin.xml
-/web-app
-*.iml
-.idea
-/.settings
