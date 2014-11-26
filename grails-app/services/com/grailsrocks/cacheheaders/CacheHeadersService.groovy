@@ -1,6 +1,7 @@
 package com.grailsrocks.cacheheaders
-
-import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.OffsetDateTime
+import java.time.ZoneId
 
 class CacheHeadersService {
 
@@ -11,7 +12,7 @@ class CacheHeadersService {
 	def presets
 
 	void lastModified(response, dateOrLong) {
-		response.setDateHeader('Last-Modified', dateOrLong instanceof Date ? dateOrLong.time : dateOrLong.toLong() )
+		response.setDateHeader('Last-Modified', getDateFor(dateOrLong).toInstant().toEpochMilli())
 	}
 
 	void cache(response, boolean allow) {
@@ -145,7 +146,7 @@ class CacheHeadersService {
 		def response = context.response
 
 		def possibleTags = request.getHeader('If-None-Match')
-		def modifiedDate = -1
+		long modifiedDate = -1
 		try {
 			modifiedDate = request.getDateHeader('If-Modified-Since')
 		}
@@ -154,7 +155,7 @@ class CacheHeadersService {
 			log.error "Couldn't parse If-Modified-Since header", iae
 		}
 		def etag
-		def lastMod
+		OffsetDateTime lastMod
 
 		def etagChanged = false
 		def lastModChanged = false
@@ -176,10 +177,11 @@ class CacheHeadersService {
 
 			if ((modifiedDate != -1) && lastModDSL) {
 				// Or... 2nd class... check lastmod
-				def compareDate = new Date(modifiedDate)
-				lastMod = callClosure(lastModDSL, context)
+				def compareDate = OffsetDateTime.ofInstant(Instant.ofEpochMilli(modifiedDate), ZoneId.systemDefault())
+				def lastModResult = callClosure(lastModDSL, context)
+				lastMod = getDateFor(lastModResult)
 
-				if (compareDate != lastMod) {
+				if (lastMod.isAfter(compareDate)) {
 					lastModChanged = true
 				}
 			}
@@ -210,6 +212,16 @@ class CacheHeadersService {
 		callClosure(generateDSL, context)
 
 		return true
+	}
+
+	private OffsetDateTime getDateFor(def result)
+	{
+		if(OffsetDateTime.isAssignableFrom(result.class))
+			return result
+		else if(Long.isAssignableFrom(result.class))
+			return OffsetDateTime.ofInstant(Instant.ofEpochMilli(result), ZoneId.systemDefault())
+		else if(Date.isAssignableFrom(result.class))
+			return OffsetDateTime.ofInstant(result.toInstant(), ZoneId.systemDefault())
 	}
 
 	def callClosure(dsl, delegate) {
